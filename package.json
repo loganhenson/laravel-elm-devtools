@@ -1,0 +1,28 @@
+{
+  "name": "laravel-elm-devtools",
+  "version": "1.0.0",
+  "description": "Laravel Elm Devtools Extension",
+  "main": "background.js",
+  "dependencies": {
+    "@types/chrome": "0.0.145",
+    "chokidar-cli": "^2.1.0",
+    "concurrently": "^6.2.0",
+    "elm": "^0.19.1-5",
+    "postcss": "^8.3.5",
+    "postcss-cli": "^8.3.1",
+    "postcss-import": "^14.0.2",
+    "tailwindcss": "^2.2.4"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "elm": "npx elm make src/Main.elm --output built/elm.js || true",
+    "css": "npx postcss css/main.css -o built/main.css || true",
+    "elm:watch": "npx chokidar 'src/**/*.elm' '/Users/loganhenson/Desktop/editor/src/**/*.elm' -c 'npm run elm'",
+    "css:watch": "npx chokidar 'css/**/*.css' '/Users/loganhenson/Desktop/editor/css/**/*.css' -c 'npm run css'",
+    "build": "npm run elm && npm run css",
+    "watch": "npm run build;npx concurrently \"npm run elm:watch\" \"npm run css:watch\"",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Logan Henson",
+  "license": "MIT"
+}
