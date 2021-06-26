@@ -1,10 +1,11 @@
 port module Main exposing (main)
 
 import Browser
-import Html exposing (Html, a, button, div, pre, text)
+import ElmRecordTree
+import Html exposing (Html, div, text)
 import Html.Attributes exposing (class, classList)
 import Html.Events exposing (onClick)
-import Json.Decode exposing (Decoder, Value, errorToString, list, nullable, string)
+import Json.Decode exposing (Decoder, Value, errorToString, list, string, value)
 import Json.Decode.Pipeline exposing (required)
 import JsonTree
 
@@ -20,8 +21,8 @@ type alias Flags =
 
 
 type alias LaravelElm =
-    { props : String
-    , state : Maybe String
+    { props : Value
+    , state : Value
     , url : String
     , page : String
     , ports : List String
@@ -38,6 +39,8 @@ type alias Model =
     { laravelElm : Maybe LaravelElm
     , error : Maybe String
     , tab : Tab
+    , stateTree : Maybe ElmRecordTree.Node
+    , stateTreeState : ElmRecordTree.State
     , propsTree : Maybe JsonTree.Node
     , propsTreeState : JsonTree.State
     }
@@ -48,12 +51,13 @@ type Msg
     | ReceiveLaravelElm Value
     | Connect
     | SelectTab Tab
+    | StateJsonTreeStateUpdate ElmRecordTree.State
     | PropsJsonTreeStateUpdate JsonTree.State
 
 
 init : Flags -> ( Model, Cmd Msg )
 init flags =
-    ( { laravelElm = Nothing, error = Nothing, tab = Props, propsTree = Nothing, propsTreeState = JsonTree.defaultState }
+    ( { laravelElm = Nothing, error = Nothing, tab = Props, stateTree = Nothing, stateTreeState = ElmRecordTree.defaultState, propsTree = Nothing, propsTreeState = JsonTree.defaultState }
     , connect ()
     )
 
@@ -61,8 +65,8 @@ init flags =
 decodeLaravelElm : Decoder LaravelElm
 decodeLaravelElm =
     Json.Decode.succeed LaravelElm
-        |> required "props" string
-        |> required "state" (nullable string)
+        |> required "props" value
+        |> required "state" value
         |> required "url" string
         |> required "page" string
         |> required "ports" (list string)
@@ -75,16 +79,29 @@ update msg model =
             case Json.Decode.decodeValue decodeLaravelElm json of
                 Ok laravelElm ->
                     let
-                        propsTree = case JsonTree.parseString laravelElm.props of
-                            Ok tree -> Just tree
-                            Err _ -> Nothing
+                        propsTree =
+                            case JsonTree.parseValue laravelElm.props of
+                                Ok tree ->
+                                    Just tree
+
+                                Err _ ->
+                                    Nothing
+
+                        stateTree =
+                            case ElmRecordTree.parseValue laravelElm.state of
+                                Ok tree ->
+                                    Just tree
+
+                                Err _ ->
+                                    Nothing
                     in
-                     ( { model
-                            | laravelElm = Just laravelElm
-                            , propsTree = propsTree
-                          }
-                        , Cmd.none
-                        )
+                    ( { model
+                        | laravelElm = Just laravelElm
+                        , propsTree = propsTree
+                        , stateTree = stateTree
+                      }
+                    , Cmd.none
+                    )
 
                 Err error ->
                     ( { model | error = Just (errorToString error) }, Cmd.none )
@@ -97,6 +114,9 @@ update msg model =
 
         PropsJsonTreeStateUpdate state ->
             ( { model | propsTreeState = state }, Cmd.none )
+
+        StateJsonTreeStateUpdate state ->
+            ( { model | stateTreeState = state }, Cmd.none )
 
         _ ->
             ( model, Cmd.none )
@@ -146,7 +166,12 @@ viewTab model =
 
         State ->
             div []
-                [ text <| Maybe.withDefault "" <| Maybe.map (Maybe.withDefault "" << .state) <| model.laravelElm
+                [ case model.stateTree of
+                    Just tree ->
+                        ElmRecordTree.view tree { onSelect = Nothing, toMsg = StateJsonTreeStateUpdate, colors = ElmRecordTree.defaultColors } model.stateTreeState
+
+                    Nothing ->
+                        text ""
                 ]
 
         Ports ->

@@ -1,15 +1,5 @@
-window.addEventListener('elm-ready', () => {
-  window.addEventListener('message', function (event) {
-    if (event.source !== window || event.data.type !== 'laravel-elm-devtools') {
-      return
-    }
-
-    chrome.runtime.sendMessage(event.data.data)
-  })
-})
-
-chrome.runtime.onMessage.addListener((message) => {
-  if (message.startsWith('laravel-elm-devtools')) {
-    window.dispatchEvent(new CustomEvent(message))
-  }
-})
+(async () => {
+  const src = chrome.extension.getURL('./content_main.js');
+  const contentScript = await import(src);
+  contentScript.main();
+})();
