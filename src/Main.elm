@@ -1,13 +1,16 @@
 port module Main exposing (main)
 
 import Browser
+import Colors
 import ElmRecordTree
-import Html exposing (Html, div, text)
-import Html.Attributes exposing (class, classList)
+import Html exposing (Html, div, span, text)
+import Html.Attributes exposing (attribute, class, classList)
 import Html.Events exposing (onClick)
 import Json.Decode exposing (Decoder, Value, errorToString, list, string, value)
 import Json.Decode.Pipeline exposing (required)
 import JsonTree
+import Svg exposing (g, polygon, svg)
+import Svg.Attributes exposing (fill, viewBox)
 
 
 port receiveLaravelElm : (Value -> msg) -> Sub msg
@@ -123,7 +126,7 @@ update msg model =
 
 view : Model -> Html.Html Msg
 view model =
-    div [ class "bg-gray-800 text-white flex w-full h-screen overflow-hidden" ]
+    div [ class "bg-white text-gray-900 flex w-full h-screen overflow-hidden" ]
         [ case model.error of
             Just error ->
                 div [] [ text error ]
@@ -132,7 +135,7 @@ view model =
                 case model.laravelElm of
                     Just laravelElm ->
                         div [ class "w-full flex flex-1 flex-col text-lg" ]
-                            [ viewTabMenu model.tab
+                            [ viewTopBar model laravelElm
                             , viewTab model
                             ]
 
@@ -141,11 +144,41 @@ view model =
         ]
 
 
-viewTabMenu : Tab -> Html Msg
-viewTabMenu tab =
-    div [ class "w-full flex text-lg font-bold border-b" ]
-        [ div [ onClick (SelectTab ModelTab), class "p-2 cursor-pointer", classList [ ( "bg-blue-700", tab == ModelTab ) ] ] [ text "Model" ]
-        , div [ onClick (SelectTab PortsTab), class "p-2 cursor-pointer ml-2", classList [ ( "bg-blue-700", tab == PortsTab ) ] ] [ text "Ports" ]
+viewTopBar : Model -> LaravelElm -> Html Msg
+viewTopBar model laravelElm =
+    div [ class "w-full flex justify-between items-center" ]
+        [ div [ class "w-10 h-10 mx-2 flex items-center justify-center" ] [ logo ]
+        , div [ class "flex p-1 items-center justify-center italic" ] [ text <| "elm/pages/" ++ laravelElm.page ++ ".elm" ]
+        , div [ class "flex" ]
+            [ viewTabOption model.tab ModelTab "Model"
+            , viewTabOption model.tab PortsTab "Ports"
+            ]
+        ]
+
+
+viewTabOption : Tab -> Tab -> String -> Html Msg
+viewTabOption tab forTab label =
+    div [ onClick (SelectTab forTab), class "cursor-pointer text-lg font-bold flex items-end" ]
+        [ div
+            [ class "pt-2 pb-1 px-4 mx-1 mt-2"
+            , class
+                (if tab == forTab then
+                    "bg-gray-900 text-white rounded-t text-white"
+
+                 else
+                    ""
+                )
+            ]
+            [ text label ]
+        ]
+
+
+viewTabTitle : String -> Html msg
+viewTabTitle title =
+    div [ class "font-bold text-center relative" ]
+        [ span [ class "absolute bg-white m-2 px-1 text-gray-900 rounded right-0" ]
+            [ text title
+            ]
         ]
 
 
@@ -153,24 +186,22 @@ viewTab : Model -> Html Msg
 viewTab model =
     case model.tab of
         ModelTab ->
-            div [ class "flex h-full text-lg" ]
+            div [ class "flex h-full text-lg text-white bg-gray-900" ]
                 [ div [ class "flex flex-col flex-1 border-r" ]
-                    [ div [ class "p-2 font-bold" ] [ text "Props" ]
-                    , div [ class "p-2 pb-16 h-full overflow-y-scroll" ]
+                    [ div [ class "p-2 pb-16 overflow-y-scroll" ]
                         [ case model.propsTree of
                             Just tree ->
-                                JsonTree.view tree { onSelect = Nothing, toMsg = PropsJsonTreeStateUpdate, colors = JsonTree.defaultColors } model.propsTreeState
+                                JsonTree.view tree { onSelect = Nothing, toMsg = PropsJsonTreeStateUpdate, colors = Colors.defaultColors } model.propsTreeState
 
                             Nothing ->
                                 text ""
                         ]
                     ]
                 , div [ class "flex flex-col flex-1" ]
-                    [ div [ class "p-2 font-bold" ] [ text "State" ]
-                    , div [ class "p-2 pb-16 h-full overflow-y-scroll" ]
+                    [ div [ class "p-2 pb-16 overflow-y-scroll" ]
                         [ case model.stateTree of
                             Just tree ->
-                                ElmRecordTree.view tree { onSelect = Nothing, toMsg = StateJsonTreeStateUpdate, colors = ElmRecordTree.defaultColors } model.stateTreeState
+                                ElmRecordTree.view tree { onSelect = Nothing, toMsg = StateJsonTreeStateUpdate, colors = Colors.defaultColors } model.stateTreeState
 
                             Nothing ->
                                 text ""
@@ -180,7 +211,7 @@ viewTab model =
 
         PortsTab ->
             div
-                [ class "p-2"
+                [ class "flex flex-col h-full text-lg text-white bg-gray-900 p-2"
                 ]
             <|
                 List.map (\name -> div [] [ text name ]) <|
@@ -197,3 +228,29 @@ main =
         , update = update
         , subscriptions = \_ -> Sub.batch [ receiveLaravelElm ReceiveLaravelElm ]
         }
+
+
+logo : Html msg
+logo =
+    svg [ viewBox "0 0 266 270" ]
+        [ g [ fill "none", attribute "fill-rule" "evenodd", attribute "stroke" "none", attribute "stroke-width" "1" ]
+            [ g [ attribute "transform" "translate(-193.000000, -96.000000)" ]
+                [ g [ attribute "transform" "translate(205.000000, 110.000000)" ]
+                    [ polygon [ fill "#FACD66", attribute "points" "47 155.666667 47 83 192 83 192 155.666667 119.5 192" ]
+                        []
+                    , polygon [ fill "#D99511", attribute "points" "120 83 192 83 192 155.666667 120 192" ]
+                        []
+                    , polygon [ fill "#EDB024", attribute "points" "47 83.5 119.5 47 192 83.5 119.5 120" ]
+                        []
+                    , g [ attribute "opacity" "0.445382254" ]
+                        [ polygon [ fill "#FACD66", attribute "points" "0 180 0 60 120 120 120 180 120 240" ]
+                            []
+                        , polygon [ fill "#D99511", attribute "points" "120 120 240 60 240 180 120 240" ]
+                            []
+                        , polygon [ fill "#EDB024", attribute "points" "0 60 35.3590414 42.3204793 92.7424858 13.6287571 120 0 240 60 120 120 66.5768909 93.2884455" ]
+                            []
+                        ]
+                    ]
+                ]
+            ]
+        ]

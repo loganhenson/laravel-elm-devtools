@@ -21,8 +21,8 @@ app.ports.connect.subscribe(() => {
 // Handle responses from the background page, if any
 backgroundConnection.onMessage.addListener(function (message) {
   app.ports.receiveLaravelElm.send({...message, ...{
-    props: message.props,
-    state: message.state ? (parse(`_:${message.state}`).value.value) : {},
+    props: {props: message.props},
+    state: message.state ? ({state: parse(`_:${message.state}`).value.value}) : {state: {}},
   }})
 })
 

@@ -2,7 +2,6 @@ module ElmRecordTree exposing
     ( parseString, parseValue, view
     , Config, State, defaultState, Node, TaggedValue(..), KeyPath
     , expandAll, collapseToDepth
-    , Colors, defaultColors
     , stateToJson, stateFromJson
     )
 
@@ -44,6 +43,7 @@ Features:
 
 -}
 
+import Colors exposing (Colors, defaultColors)
 import Dict exposing (Dict)
 import Html exposing (Attribute, Html, div, li, span, text, ul)
 import Html.Attributes exposing (class, id, style)
@@ -76,30 +76,6 @@ type TaggedValue
 -}
 type alias KeyPath =
     String
-
-
-{-| The colors to be used when showing elements of the JSON Tree.
-The strings must be valid CSS colors (e.g. "red", "#ff0000").
--}
-type alias Colors =
-    { string : String
-    , number : String
-    , bool : String
-    , null : String
-    , selectable : String
-    }
-
-
-{-| The defaults colors, which are suitable for a light background.
--}
-defaultColors : Colors
-defaultColors =
-    { string = "#77ff77"
-    , number = "#03a9f4"
-    , bool = "white"
-    , null = "light-gray"
-    , selectable = "#fafad2"
-    }
 
 
 type alias Css =
