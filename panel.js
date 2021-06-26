@@ -1,5 +1,4 @@
 import { parse } from './js/parser.js'
-import transform from './js/transform.js'
 
 let app = Elm.Main.init({
   node: document.getElementById('app'),
@@ -21,8 +20,6 @@ app.ports.connect.subscribe(() => {
 
 // Handle responses from the background page, if any
 backgroundConnection.onMessage.addListener(function (message) {
-  console.log(message.state)
-  console.log(parse(`_:${message.state}`).value.value)
   app.ports.receiveLaravelElm.send({...message, ...{
     props: message.props,
     state: message.state ? (parse(`_:${message.state}`).value.value) : {},
