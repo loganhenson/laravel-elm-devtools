@@ -25,7 +25,7 @@ backgroundConnection.onMessage.addListener(function (message) {
   console.log(parse(`_:${message.state}`).value.value)
   app.ports.receiveLaravelElm.send({...message, ...{
     props: message.props,
-    state: message.state ? transform(parse(`_:${message.state}`).value.value) : {},
+    state: message.state ? (parse(`_:${message.state}`).value.value) : {},
   }})
 })
 

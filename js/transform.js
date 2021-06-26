@@ -4,12 +4,19 @@ const transform = (data) => {
       continue
     }
 
+    // if (typeof data[key] === 'object' && data[key].hasOwnProperty('value')) {
+    //   data[key] = transform(data[key])
+    // }
+
     if (data[key].hasOwnProperty('value')
       && data[key].hasOwnProperty('type')
       && ['List', 'Record'].includes(data[key].type)
     ) {
-      data[key] = transform(data[key].value)
-    } else if (data[key].hasOwnProperty('type')
+      // data[key] = transform(data[key].value)
+      data[key] = data[key].value
+    }
+
+    if (data[key].hasOwnProperty('type')
       && data[key].type === 'String'
       && data[key].hasOwnProperty('type')
     ) {

@@ -374,6 +374,8 @@ viewNodeInternal depth config node state =
                             case Dict.get "value" d |> Maybe.map .value of
                                 Just (TFloat value) ->
                                     [ span [ class "font-bold italic" ] [ text "Just " ] ] ++ viewNodeInternal depth config (Node (TFloat value) node.keyPath) state
+                                Just (TDict value) ->
+                                    [ span [ class "font-bold italic" ] [ text "Just " ] ] ++ viewNodeInternal depth config (Node (TDict value) node.keyPath) state
 
                                 _ ->
                                     viewDict depth dict node.keyPath config state
@@ -385,6 +387,15 @@ viewNodeInternal depth config node state =
                     case ( (Dict.get "type" dict |> Maybe.map .value), Dict.get "name" dict |> Maybe.map .value, Dict.get "value" dict |> Maybe.map .value ) of
                         ( Just (TString "Type"), Just (TString customType), Nothing ) ->
                             [ span [ class "font-bold italic" ] [ text customType ] ]
+
+                        ( Just (TString "String"), Nothing, Just string ) ->
+                            viewNodeInternal depth config (Node string node.keyPath) state
+
+                        ( Just (TString "List"), Nothing, Just list ) ->
+                            viewNodeInternal depth config (Node list node.keyPath) state
+
+                        ( Just (TString "Record"), Nothing, Just record ) ->
+                            viewNodeInternal depth config (Node record node.keyPath) state
 
                         ( Just (TString "Number"), Nothing, Just number ) ->
                             viewNodeInternal depth config (Node number node.keyPath) state
