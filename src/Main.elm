@@ -30,9 +30,8 @@ type alias LaravelElm =
 
 
 type Tab
-    = Props
-    | State
-    | Ports
+    = ModelTab
+    | PortsTab
 
 
 type alias Model =
@@ -57,7 +56,7 @@ type Msg
 
 init : Flags -> ( Model, Cmd Msg )
 init flags =
-    ( { laravelElm = Nothing, error = Nothing, tab = Props, stateTree = Nothing, stateTreeState = ElmRecordTree.defaultState, propsTree = Nothing, propsTreeState = JsonTree.defaultState }
+    ( { laravelElm = Nothing, error = Nothing, tab = ModelTab, stateTree = Nothing, stateTreeState = ElmRecordTree.defaultState, propsTree = Nothing, propsTreeState = JsonTree.defaultState }
     , connect ()
     )
 
@@ -132,9 +131,9 @@ view model =
             Nothing ->
                 case model.laravelElm of
                     Just laravelElm ->
-                        div [ class "w-full flex flex-1 flex-col" ]
+                        div [ class "w-full flex flex-1 flex-col text-lg" ]
                             [ viewTabMenu model.tab
-                            , div [ class "p-2 h-full overflow-y-scroll text-lg" ] [ viewTab model ]
+                            , viewTab model
                             ]
 
                     Nothing ->
@@ -144,38 +143,50 @@ view model =
 
 viewTabMenu : Tab -> Html Msg
 viewTabMenu tab =
-    div [ class "w-full flex text-lg border-b" ]
-        [ div [ onClick (SelectTab Props), class "p-2 cursor-pointer", classList [ ( "bg-blue-700", tab == Props ) ] ] [ text "Props" ]
-        , div [ onClick (SelectTab State), class "p-2 cursor-pointer ml-2", classList [ ( "bg-blue-700", tab == State ) ] ] [ text "State" ]
-        , div [ onClick (SelectTab Ports), class "p-2 cursor-pointer ml-2", classList [ ( "bg-blue-700", tab == Ports ) ] ] [ text "Ports" ]
+    div [ class "w-full flex text-lg font-bold border-b" ]
+        [ div [ onClick (SelectTab ModelTab), class "p-2 cursor-pointer", classList [ ( "bg-blue-700", tab == ModelTab ) ] ] [ text "Model" ]
+        , div [ onClick (SelectTab PortsTab), class "p-2 cursor-pointer ml-2", classList [ ( "bg-blue-700", tab == PortsTab ) ] ] [ text "Ports" ]
         ]
 
 
 viewTab : Model -> Html Msg
 viewTab model =
     case model.tab of
-        Props ->
-            div []
-                [ case model.propsTree of
-                    Just tree ->
-                        JsonTree.view tree { onSelect = Nothing, toMsg = PropsJsonTreeStateUpdate, colors = JsonTree.defaultColors } model.propsTreeState
+        ModelTab ->
+            div [ class "flex h-full text-lg" ]
+                [ div [ class "flex flex-col flex-1 border-r" ]
+                    [ div [ class "p-2 font-bold" ] [ text "Props" ]
+                    , div [ class "p-2 pb-16 h-full overflow-y-scroll" ]
+                        [ case model.propsTree of
+                            Just tree ->
+                                JsonTree.view tree { onSelect = Nothing, toMsg = PropsJsonTreeStateUpdate, colors = JsonTree.defaultColors } model.propsTreeState
 
-                    Nothing ->
-                        text ""
+                            Nothing ->
+                                text ""
+                        ]
+                    ]
+                , div [ class "flex flex-col flex-1" ]
+                    [ div [ class "p-2 font-bold" ] [ text "State" ]
+                    , div [ class "p-2 pb-16 h-full overflow-y-scroll" ]
+                        [ case model.stateTree of
+                            Just tree ->
+                                ElmRecordTree.view tree { onSelect = Nothing, toMsg = StateJsonTreeStateUpdate, colors = ElmRecordTree.defaultColors } model.stateTreeState
+
+                            Nothing ->
+                                text ""
+                        ]
+                    ]
                 ]
 
-        State ->
-            div []
-                [ case model.stateTree of
-                    Just tree ->
-                        ElmRecordTree.view tree { onSelect = Nothing, toMsg = StateJsonTreeStateUpdate, colors = ElmRecordTree.defaultColors } model.stateTreeState
-
-                    Nothing ->
-                        text ""
+        PortsTab ->
+            div
+                [ class "p-2"
                 ]
-
-        Ports ->
-            div [] <| List.map (\name -> div [] [ text name ]) <| Maybe.withDefault [] <| Maybe.map .ports <| model.laravelElm
+            <|
+                List.map (\name -> div [] [ text name ]) <|
+                    Maybe.withDefault [] <|
+                        Maybe.map .ports <|
+                            model.laravelElm
 
 
 main : Program Flags Model Msg
