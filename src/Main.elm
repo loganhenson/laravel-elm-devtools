@@ -134,7 +134,7 @@ view model =
                     Just laravelElm ->
                         div [ class "w-full flex flex-1 flex-col" ]
                             [ viewTabMenu model.tab
-                            , div [ class "p-2 h-full overflow-y-scroll" ] [ viewTab model ]
+                            , div [ class "p-2 h-full overflow-y-scroll text-lg" ] [ viewTab model ]
                             ]
 
                     Nothing ->

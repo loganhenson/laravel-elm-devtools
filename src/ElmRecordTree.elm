@@ -9,21 +9,39 @@ module ElmRecordTree exposing
 {-| This library provides a JSON tree view. You feed it JSON, and it transforms it into
 interactive HTML.
 Features:
+
   - show JSON as a tree of HTML
   - expand/collapse nodes in the tree
   - expand/collapse the entire tree
   - select scalar values in the tree
+
+
 # Basic Usage
+
 @docs parseString, parseValue, view
+
+
 # Types
+
 @docs Config, State, defaultState, Node, TaggedValue, KeyPath
+
+
 # Expand/Collapse
+
 @docs expandAll, collapseToDepth
+
+
 # Customizing Colors
+
 @docs Colors, defaultColors
+
+
 # Uncommon/Advanced Stuff
+
 **Note:** These are rarely needed, but they are there if you need it.
+
 @docs stateToJson, stateFromJson
+
 -}
 
 import Dict exposing (Dict)
@@ -349,20 +367,33 @@ viewNodeInternal depth config node state =
             viewArray depth nodes node.keyPath config state
 
         TDict dict ->
-            case (Dict.get "value" dict |> Maybe.map .value, (((Dict.get "type" dict) |> Maybe.map .value) == Just (TString "Custom")) && (((Dict.get "name" dict) |> Maybe.map .value) == Just (TString "Just"))) of
-                (justSomething, True) ->
+            case ( Dict.get "value" dict |> Maybe.map .value, ((Dict.get "type" dict |> Maybe.map .value) == Just (TString "Custom")) && ((Dict.get "name" dict |> Maybe.map .value) == Just (TString "Just")) ) of
+                ( justSomething, True ) ->
                     case justSomething of
-                            Just (TDict d) ->
-                               case Dict.get "value" d |> Maybe.map .value of
-                                    Just (TFloat value) ->
-                                          [text "Just "] ++ (viewNodeInternal depth config (Node (TFloat value) node.keyPath ) state)
-                                    _ ->
-                                          viewDict depth dict node.keyPath config state
+                        Just (TDict d) ->
+                            case Dict.get "value" d |> Maybe.map .value of
+                                Just (TFloat value) ->
+                                    [ span [ class "font-bold italic" ] [ text "Just " ] ] ++ viewNodeInternal depth config (Node (TFloat value) node.keyPath) state
 
-                            _ ->
-                                viewDict depth dict node.keyPath config state
+                                _ ->
+                                    viewDict depth dict node.keyPath config state
+
+                        _ ->
+                            viewDict depth dict node.keyPath config state
+
                 _ ->
-                    viewDict depth dict node.keyPath config state
+                    case ( (Dict.get "type" dict |> Maybe.map .value), Dict.get "name" dict |> Maybe.map .value, Dict.get "value" dict |> Maybe.map .value ) of
+                        ( Just (TString "Type"), Just (TString customType), Nothing ) ->
+                            [ span [ class "font-bold italic" ] [ text customType ] ]
+
+                        ( Just (TString "Number"), Nothing, Just number ) ->
+                            viewNodeInternal depth config (Node number node.keyPath) state
+
+                        ( Just (TString "Boolean"), Nothing, Just (TBool bool) ) ->
+                            [ span [ class "font-bold italic" ] [ text (if bool then "True" else "False") ] ]
+
+                        _ ->
+                            viewDict depth dict node.keyPath config state
 
 
 viewScalar : List ( String, String ) -> String -> Node -> Config msg -> List (Html msg)
@@ -437,7 +468,6 @@ viewArray depth nodes keyPath config state =
 viewDict : Int -> Dict String Node -> KeyPath -> Config msg -> State -> List (Html msg)
 viewDict depth dict keyPath config state =
     let
-        ok = Debug.log "dict" dict
         innerContent =
             if Dict.isEmpty dict then
                 []
@@ -491,8 +521,7 @@ css =
         , ( "left", "-15px" )
         ]
     , fieldName =
-        [
-        ]
+        []
     , string = \colors -> [ ( "color", colors.string ) ]
     , number = \colors -> [ ( "color", colors.number ) ]
     , bool = \colors -> [ ( "color", colors.bool ) ]
