@@ -148,7 +148,7 @@ viewTopBar : Model -> LaravelElm -> Html Msg
 viewTopBar model laravelElm =
     div [ class "w-full flex justify-between items-center" ]
         [ div [ class "w-10 h-10 mx-2 flex items-center justify-center" ] [ logo ]
-        , div [ class "flex p-1 items-center justify-center italic" ] [ text <| "elm/pages/" ++ laravelElm.page ++ ".elm" ]
+        , div [ class "flex p-1 items-center justify-center italic overflow-x-scroll" ] [ text <| "elm/pages/" ++ laravelElm.page ++ ".elm" ]
         , div [ class "flex" ]
             [ viewTabOption model.tab ModelTab "Model"
             , viewTabOption model.tab PortsTab "Ports"
@@ -187,7 +187,7 @@ viewTab model =
     case model.tab of
         ModelTab ->
             div [ class "flex h-full text-lg text-white bg-gray-900" ]
-                [ div [ class "flex flex-col flex-1 border-r" ]
+                [ div [ class "flex flex-col flex-1 border-r overflow-x-scroll" ]
                     [ div [ class "p-2 pb-16 overflow-y-scroll" ]
                         [ case model.propsTree of
                             Just tree ->
@@ -197,7 +197,7 @@ viewTab model =
                                 text ""
                         ]
                     ]
-                , div [ class "flex flex-col flex-1" ]
+                , div [ class "flex flex-col flex-1 overflow-x-scroll" ]
                     [ div [ class "p-2 pb-16 overflow-y-scroll" ]
                         [ case model.stateTree of
                             Just tree ->
