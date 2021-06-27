@@ -234,6 +234,8 @@ css =
         , ( "cursor", "pointer" )
         , ( "top", "1px" )
         , ( "left", "-15px" )
+        , ( "left", "-15px" )
+        , ( "width", "100%" )
         ]
     , fieldName =
         []
