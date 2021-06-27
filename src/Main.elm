@@ -1,16 +1,16 @@
 port module Main exposing (main)
 
 import Browser
-import Colors
 import ElmRecordTree
 import Html exposing (Html, div, span, text)
-import Html.Attributes exposing (attribute, class, classList)
+import Html.Attributes exposing (attribute, class)
 import Html.Events exposing (onClick)
 import Json.Decode exposing (Decoder, Value, errorToString, list, string, value)
 import Json.Decode.Pipeline exposing (required)
 import JsonTree
 import Svg exposing (g, polygon, svg)
 import Svg.Attributes exposing (fill, viewBox)
+import Tree
 
 
 port receiveLaravelElm : (Value -> msg) -> Sub msg
@@ -41,10 +41,10 @@ type alias Model =
     { laravelElm : Maybe LaravelElm
     , error : Maybe String
     , tab : Tab
-    , stateTree : Maybe ElmRecordTree.Node
-    , stateTreeState : ElmRecordTree.State
-    , propsTree : Maybe JsonTree.Node
-    , propsTreeState : JsonTree.State
+    , stateTree : Maybe Tree.Node
+    , stateTreeState : Tree.State
+    , propsTree : Maybe Tree.Node
+    , propsTreeState : Tree.State
     }
 
 
@@ -53,13 +53,13 @@ type Msg
     | ReceiveLaravelElm Value
     | Connect
     | SelectTab Tab
-    | StateJsonTreeStateUpdate ElmRecordTree.State
-    | PropsJsonTreeStateUpdate JsonTree.State
+    | StateJsonTreeStateUpdate Tree.State
+    | PropsJsonTreeStateUpdate Tree.State
 
 
 init : Flags -> ( Model, Cmd Msg )
 init flags =
-    ( { laravelElm = Nothing, error = Nothing, tab = ModelTab, stateTree = Nothing, stateTreeState = ElmRecordTree.defaultState, propsTree = Nothing, propsTreeState = JsonTree.defaultState }
+    ( { laravelElm = Nothing, error = Nothing, tab = ModelTab, stateTree = Nothing, stateTreeState = Tree.defaultState, propsTree = Nothing, propsTreeState = Tree.defaultState }
     , connect ()
     )
 
@@ -82,7 +82,7 @@ update msg model =
                 Ok laravelElm ->
                     let
                         propsTree =
-                            case JsonTree.parseValue laravelElm.props of
+                            case Tree.parseValue laravelElm.props of
                                 Ok tree ->
                                     Just tree
 
@@ -90,7 +90,7 @@ update msg model =
                                     Nothing
 
                         stateTree =
-                            case ElmRecordTree.parseValue laravelElm.state of
+                            case Tree.parseValue laravelElm.state of
                                 Ok tree ->
                                     Just tree
 
@@ -191,7 +191,7 @@ viewTab model =
                     [ div [ class "p-2 pb-16 overflow-y-scroll" ]
                         [ case model.propsTree of
                             Just tree ->
-                                JsonTree.view tree { onSelect = Nothing, toMsg = PropsJsonTreeStateUpdate, colors = Colors.defaultColors } model.propsTreeState
+                                JsonTree.view tree { onSelect = Nothing, toMsg = PropsJsonTreeStateUpdate, colors = Tree.defaultColors } model.propsTreeState
 
                             Nothing ->
                                 text ""
@@ -201,7 +201,7 @@ viewTab model =
                     [ div [ class "p-2 pb-16 overflow-y-scroll" ]
                         [ case model.stateTree of
                             Just tree ->
-                                ElmRecordTree.view tree { onSelect = Nothing, toMsg = StateJsonTreeStateUpdate, colors = Colors.defaultColors } model.stateTreeState
+                                ElmRecordTree.view tree { onSelect = Nothing, toMsg = StateJsonTreeStateUpdate, colors = Tree.defaultColors } model.stateTreeState
 
                             Nothing ->
                                 text ""
