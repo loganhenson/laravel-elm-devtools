@@ -1,6 +1,5 @@
 module.exports = {
-  purge: ["./src/*.elm"],
+  content: ["./src/*.elm", "./panel.html", "./devtools.html"],
   theme: {},
-  variants: {},
   plugins: [],
 }
