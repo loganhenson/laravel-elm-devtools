@@ -80,7 +80,7 @@ the window when a page loads, when props change and (in development builds) afte
 -   When the panel opens, or when you click ⟳, it dispatches `laravel-elm-devtools-connect` in the page, and
     Laravel Elm answers with the current page.
 
-Nothing leaves your browser.
+Nothing leaves your browser. See [PRIVACY.md](PRIVACY.md).
 
 ## Development
 

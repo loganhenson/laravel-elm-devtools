@@ -57,8 +57,7 @@ Laravel Elm apps can run on any domain (localhost, *.test, staging and productio
 **Data usage:** check nothing. The extension does not collect or transmit any user data. Certify the three
 statements (not sold to third parties; not used for unrelated purposes; not used for creditworthiness/lending).
 
-**Privacy policy URL:** not required (no user data collected). If the dashboard insists, use
-https://github.com/loganhenson/laravel-elm-devtools#how-it-works
+**Privacy policy URL:** https://github.com/loganhenson/laravel-elm-devtools/blob/main/PRIVACY.md
 
 ## Distribution
 
