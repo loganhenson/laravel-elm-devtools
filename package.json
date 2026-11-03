@@ -1,6 +1,6 @@
 {
     "name": "laravel-elm-devtools",
-    "version": "3.0.0",
+    "version": "3.0.1",
     "private": true,
     "description": "Chrome DevTools panel for Laravel Elm: inspect the current page's props, state and ports",
     "type": "module",
