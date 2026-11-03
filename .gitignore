@@ -2,3 +2,5 @@
 node_modules
 elm-stuff
 built/
+dist/
+.DS_Store

@@ -1,0 +1,46 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - run: npm ci
+
+      - name: Check versions
+        run: |
+          node -e "
+            const m = require('./manifest.json'), p = require('./package.json');
+            const tag = process.env.GITHUB_REF_TYPE === 'tag' ? process.env.GITHUB_REF_NAME.replace(/^v/, '') : p.version;
+            if (m.version !== p.version || p.version !== tag) { console.error('version mismatch', { manifest: m.version, package: p.version, tag }); process.exit(1) }
+          "
+
+      - name: Parser is up to date
+        run: npm run build:parser && git diff --exit-code js/parser.js
+
+      - run: npm run package
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: laravel-elm-devtools
+          path: dist/*.zip
+
+      - name: GitHub release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dist/*.zip --title "$GITHUB_REF_NAME" --generate-notes

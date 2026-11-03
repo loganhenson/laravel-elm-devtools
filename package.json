@@ -1,28 +1,30 @@
 {
-  "name": "laravel-elm-devtools",
-  "version": "2.0.0",
-  "description": "Laravel Elm Devtools Extension",
-  "main": "background.js",
-  "dependencies": {
-    "@types/chrome": "^0.0.270",
-    "chokidar-cli": "^3.0.0",
-    "concurrently": "^8.2.0",
-    "elm": "^0.19.1-5",
-    "postcss": "^8.4.35",
-    "postcss-cli": "^11.0.0",
-    "postcss-import": "^16.0.0",
-    "tailwindcss": "^3.4.0"
-  },
-  "devDependencies": {},
-  "scripts": {
-    "elm": "elm make src/Main.elm --output built/elm.js",
-    "css": "postcss css/main.css -o built/main.css",
-    "elm:watch": "chokidar 'src/**/*.elm' -c 'npm run elm'",
-    "css:watch": "chokidar 'css/**/*.css' -c 'npm run css'",
-    "build": "mkdir -p built && npm run elm && npm run css",
-    "watch": "npm run build && concurrently \"npm run elm:watch\" \"npm run css:watch\"",
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "author": "Logan Henson",
-  "license": "MIT"
+    "name": "laravel-elm-devtools",
+    "version": "3.0.0",
+    "private": true,
+    "description": "Chrome DevTools panel for Laravel Elm: inspect the current page's props, state and ports",
+    "type": "module",
+    "scripts": {
+        "build": "npm run build:elm && npm run build:css",
+        "build:parser": "peggy --format es -o js/parser.js js/debug-string.peggy",
+        "build:elm": "elm make src/Main.elm --optimize --output built/elm.js",
+        "build:css": "tailwindcss -i css/main.css -o built/main.css --minify",
+        "watch": "node scripts/watch.js",
+        "package": "npm run build && node scripts/package.js"
+    },
+    "devDependencies": {
+        "@tailwindcss/cli": "^4.3.0",
+        "elm": "^0.19.3-0",
+        "peggy": "^5.1.1",
+        "tailwindcss": "^4.3.0"
+    },
+    "engines": {
+        "node": ">=20.19"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/loganhenson/laravel-elm-devtools.git"
+    },
+    "author": "Logan Henson",
+    "license": "MIT"
 }

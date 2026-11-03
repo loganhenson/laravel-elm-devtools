@@ -1,35 +1,43 @@
 port module Main exposing (main)
 
 import Browser
-import ElmRecordTree
-import Html exposing (Html, div, span, text)
-import Html.Attributes exposing (attribute, class)
+import Html exposing (Html, a, button, code, div, h2, li, p, span, text, ul)
+import Html.Attributes exposing (attribute, class, href, target, title, type_)
 import Html.Events exposing (onClick)
-import Json.Decode exposing (Decoder, Value, errorToString, list, string, value)
-import Json.Decode.Pipeline exposing (required)
-import JsonTree
+import Inspector
+import Json.Decode as Decode exposing (Decoder, Value)
+import Json.Decode.Pipeline exposing (optional, required)
 import Svg exposing (g, polygon, svg)
 import Svg.Attributes exposing (fill, viewBox)
-import Tree
 
 
-port receiveLaravelElm : (Value -> msg) -> Sub msg
+{-| A page sent by panel.js: what Laravel Elm posted from the inspected page, with the
+`Debug.toString` state already parsed into an AST (or the parse error).
+-}
+port receivePage : (Value -> msg) -> Sub msg
 
 
-port connect : () -> Cmd msg
+{-| The inspected page navigated (full page load).
+-}
+port pageNavigated : (() -> msg) -> Sub msg
 
 
-type alias Flags =
-    {}
+port requestPage : () -> Cmd msg
 
 
-type alias LaravelElm =
-    { props : Value
-    , state : Value
+type alias Page =
+    { page : String
     , url : String
-    , page : String
+    , props : Result String Inspector.Value
+    , state : StateValue
     , ports : List String
     }
+
+
+type StateValue
+    = NoState
+    | StateValue Inspector.Value
+    | StateError String String
 
 
 type Tab
@@ -38,195 +46,264 @@ type Tab
 
 
 type alias Model =
-    { laravelElm : Maybe LaravelElm
+    { page : Maybe Page
     , error : Maybe String
     , tab : Tab
-    , stateTree : Maybe Tree.Node
-    , stateTreeState : Tree.State
-    , propsTree : Maybe Tree.Node
-    , propsTreeState : Tree.State
+    , propsTree : Inspector.State
+    , stateTree : Inspector.State
     }
 
 
 type Msg
-    = NoOp
-    | ReceiveLaravelElm Value
-    | Connect
+    = ReceivePage Value
+    | PageNavigated
+    | Refresh
     | SelectTab Tab
-    | StateJsonTreeStateUpdate Tree.State
-    | PropsJsonTreeStateUpdate Tree.State
+    | SetPropsTree Inspector.State
+    | SetStateTree Inspector.State
 
 
-init : Flags -> ( Model, Cmd Msg )
-init flags =
-    ( { laravelElm = Nothing, error = Nothing, tab = ModelTab, stateTree = Nothing, stateTreeState = Tree.defaultState, propsTree = Nothing, propsTreeState = Tree.defaultState }
-    , connect ()
+init : () -> ( Model, Cmd Msg )
+init _ =
+    ( { page = Nothing
+      , error = Nothing
+      , tab = ModelTab
+      , propsTree = Inspector.initialState
+      , stateTree = Inspector.initialState
+      }
+    , requestPage ()
     )
 
 
-decodeLaravelElm : Decoder LaravelElm
-decodeLaravelElm =
-    Json.Decode.succeed LaravelElm
-        |> required "props" value
-        |> required "state" value
-        |> required "url" string
-        |> required "page" string
-        |> required "ports" (list string)
+decodePage : Decoder Page
+decodePage =
+    Decode.succeed Page
+        |> required "page" Decode.string
+        |> required "url" Decode.string
+        |> required "props" (Decode.map (Result.mapError Decode.errorToString << Decode.decodeValue Inspector.decodeJson) Decode.value)
+        |> required "state" decodeStateValue
+        |> optional "ports" (Decode.list Decode.string) []
+
+
+decodeStateValue : Decoder StateValue
+decodeStateValue =
+    Decode.oneOf
+        [ Decode.null NoState
+        , Decode.map2 StateError (Decode.field "error" Decode.string) (Decode.field "raw" Decode.string)
+        , Decode.map StateValue (Decode.field "ast" Inspector.decodeElm)
+        ]
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        ReceiveLaravelElm json ->
-            case Json.Decode.decodeValue decodeLaravelElm json of
-                Ok laravelElm ->
+        ReceivePage json ->
+            case Decode.decodeValue decodePage json of
+                Ok page ->
                     let
-                        propsTree =
-                            case Tree.parseValue laravelElm.props of
-                                Ok tree ->
-                                    Just tree
-
-                                Err _ ->
-                                    Nothing
-
-                        stateTree =
-                            case Tree.parseValue laravelElm.state of
-                                Ok tree ->
-                                    Just tree
-
-                                Err _ ->
-                                    Nothing
+                        samePage =
+                            Maybe.map .page model.page == Just page.page
                     in
                     ( { model
-                        | laravelElm = Just laravelElm
-                        , propsTree = propsTree
-                        , stateTree = stateTree
+                        | page = Just page
+                        , error = Nothing
+                        , propsTree =
+                            if samePage then
+                                model.propsTree
+
+                            else
+                                Inspector.initialState
+                        , stateTree =
+                            if samePage then
+                                model.stateTree
+
+                            else
+                                Inspector.initialState
                       }
                     , Cmd.none
                     )
 
                 Err error ->
-                    ( { model | error = Just (errorToString error) }, Cmd.none )
+                    ( { model | error = Just (Decode.errorToString error) }, Cmd.none )
 
-        Connect ->
-            ( model, connect () )
+        PageNavigated ->
+            ( { model | page = Nothing, error = Nothing }, Cmd.none )
+
+        Refresh ->
+            ( model, requestPage () )
 
         SelectTab tab ->
             ( { model | tab = tab }, Cmd.none )
 
-        PropsJsonTreeStateUpdate state ->
-            ( { model | propsTreeState = state }, Cmd.none )
+        SetPropsTree tree ->
+            ( { model | propsTree = tree }, Cmd.none )
 
-        StateJsonTreeStateUpdate state ->
-            ( { model | stateTreeState = state }, Cmd.none )
-
-        _ ->
-            ( model, Cmd.none )
+        SetStateTree tree ->
+            ( { model | stateTree = tree }, Cmd.none )
 
 
-view : Model -> Html.Html Msg
+
+-- VIEW
+
+
+view : Model -> Html Msg
 view model =
-    div [ class "bg-white text-gray-900 flex w-full h-screen overflow-hidden" ]
-        [ case model.error of
-            Just error ->
-                div [] [ text error ]
+    div [ class "flex h-screen flex-col overflow-hidden bg-white text-gray-900 dark:bg-[#202124] dark:text-gray-200" ]
+        [ case model.page of
+            Just page ->
+                div [ class "flex min-h-0 flex-1 flex-col" ]
+                    [ viewTopBar model page
+                    , viewError model.error
+                    , viewTab model page
+                    ]
 
             Nothing ->
-                case model.laravelElm of
-                    Just laravelElm ->
-                        div [ class "w-full flex flex-1 flex-col text-lg" ]
-                            [ viewTopBar model laravelElm
-                            , viewTab model
-                            ]
-
-                    Nothing ->
-                        text ""
+                div [ class "flex min-h-0 flex-1 flex-col" ]
+                    [ viewError model.error
+                    , viewWaiting
+                    ]
         ]
 
 
-viewTopBar : Model -> LaravelElm -> Html Msg
-viewTopBar model laravelElm =
-    div [ class "w-full flex justify-between items-center" ]
-        [ div [ class "w-10 h-10 mx-2 flex items-center justify-center" ] [ logo ]
-        , div [ class "flex p-1 items-center justify-center italic overflow-x-scroll" ] [ text <| "elm/pages/" ++ laravelElm.page ++ ".elm" ]
-        , div [ class "flex" ]
-            [ viewTabOption model.tab ModelTab "Model"
-            , viewTabOption model.tab PortsTab "Ports"
+viewTopBar : Model -> Page -> Html Msg
+viewTopBar model page =
+    div [ class "flex shrink-0 items-center gap-3 border-b border-gray-200 px-2 text-xs dark:border-white/10" ]
+        [ div [ class "size-5 shrink-0" ] [ logo ]
+        , div [ class "flex min-w-0 flex-1 items-baseline gap-2 py-2" ]
+            [ span [ class "font-semibold", title ("resources/elm/pages/" ++ String.replace "." "/" page.page ++ ".elm") ] [ text page.page ]
+            , span [ class "truncate text-gray-500 dark:text-gray-400", title page.url ] [ text page.url ]
             ]
+        , div [ class "flex shrink-0 self-stretch" ]
+            [ viewTabOption model.tab ModelTab "Model"
+            , viewTabOption model.tab PortsTab ("Ports (" ++ String.fromInt (List.length page.ports) ++ ")")
+            ]
+        , button
+            [ type_ "button"
+            , class "shrink-0 rounded px-2 py-1 text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/5"
+            , title "Ask the page to send its props and state again"
+            , onClick Refresh
+            ]
+            [ text "⟳" ]
         ]
 
 
 viewTabOption : Tab -> Tab -> String -> Html Msg
-viewTabOption tab forTab label =
-    div [ onClick (SelectTab forTab), class "cursor-pointer text-lg font-bold flex items-end" ]
-        [ div
-            [ class "pt-2 pb-1 px-4 mx-1 mt-2"
-            , class
-                (if tab == forTab then
-                    "bg-gray-900 text-white rounded-t text-white"
+viewTabOption current tab label =
+    button
+        [ type_ "button"
+        , onClick (SelectTab tab)
+        , class "border-b-2 px-3"
+        , class
+            (if current == tab then
+                "border-blue-600 text-gray-900 dark:border-blue-400 dark:text-white"
 
-                 else
-                    ""
-                )
-            ]
-            [ text label ]
+             else
+                "border-transparent text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+            )
         ]
+        [ text label ]
 
 
-viewTabTitle : String -> Html msg
-viewTabTitle title =
-    div [ class "font-bold text-center relative" ]
-        [ span [ class "absolute bg-white m-2 px-1 text-gray-900 rounded right-0" ]
-            [ text title
-            ]
-        ]
+viewError : Maybe String -> Html msg
+viewError error =
+    case error of
+        Just message ->
+            div [ class "shrink-0 border-b border-red-200 bg-red-50 px-3 py-2 font-mono text-xs whitespace-pre-wrap text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200" ]
+                [ text ("Laravel Elm DevTools could not read the message from the page:\n" ++ message) ]
+
+        Nothing ->
+            text ""
 
 
-viewTab : Model -> Html Msg
-viewTab model =
+viewTab : Model -> Page -> Html Msg
+viewTab model page =
     case model.tab of
         ModelTab ->
-            div [ class "flex h-full text-lg text-white bg-gray-900" ]
-                [ div [ class "flex flex-col flex-1 border-r overflow-x-scroll" ]
-                    [ div [ class "p-2 pb-16 overflow-y-scroll" ]
-                        [ case model.propsTree of
-                            Just tree ->
-                                JsonTree.view tree { onSelect = Nothing, toMsg = PropsJsonTreeStateUpdate, colors = Tree.defaultColors } model.propsTreeState
+            div [ class "grid min-h-0 flex-1 grid-cols-1 grid-rows-2 sm:grid-cols-2 sm:grid-rows-1" ]
+                [ viewSection "Props" "The props your controller passed to Elm::render (JSON)." <|
+                    case page.props of
+                        Ok props ->
+                            Inspector.view SetPropsTree model.propsTree props
 
-                            Nothing ->
-                                text ""
-                        ]
-                    ]
-                , div [ class "flex flex-col flex-1 overflow-x-scroll" ]
-                    [ div [ class "p-2 pb-16 overflow-y-scroll" ]
-                        [ case model.stateTree of
-                            Just tree ->
-                                ElmRecordTree.view tree { onSelect = Nothing, toMsg = StateJsonTreeStateUpdate, colors = Tree.defaultColors } model.stateTreeState
+                        Err error ->
+                            viewNote error
+                , viewSection "State" "The page's state record (from Debug.toString)." <|
+                    case page.state of
+                        StateValue state ->
+                            Inspector.view SetStateTree model.stateTree state
 
-                            Nothing ->
-                                text ""
-                        ]
-                    ]
+                        StateError error raw ->
+                            div []
+                                [ viewNote ("Could not parse the state: " ++ error)
+                                , div [ class "mt-2 font-mono text-xs whitespace-pre-wrap break-all" ] [ text raw ]
+                                ]
+
+                        NoState ->
+                            div [ class "space-y-2" ]
+                                [ viewNote "No state received yet."
+                                , viewNote "State is only sent by development builds: run `npm run dev` (a `npm run build` bundle has the state messages compiled out). It updates after every Msg."
+                                ]
                 ]
 
         PortsTab ->
-            div
-                [ class "flex flex-col h-full text-lg text-white bg-gray-900 p-2"
+            div [ class "min-h-0 flex-1 overflow-auto p-3 text-xs" ]
+                [ p [ class "mb-2 text-gray-500 dark:text-gray-400" ]
+                    [ text "Ports of this page that JavaScript is subscribed to (Laravel Elm's own and the ones you registered with LaravelElm.register)." ]
+                , if List.isEmpty page.ports then
+                    viewNote "None."
+
+                  else
+                    ul [ class "space-y-1 font-mono" ] (List.map (\name -> li [] [ text name ]) page.ports)
                 ]
-            <|
-                List.map (\name -> div [] [ text name ]) <|
-                    Maybe.withDefault [] <|
-                        Maybe.map .ports <|
-                            model.laravelElm
 
 
-main : Program Flags Model Msg
+viewSection : String -> String -> Html msg -> Html msg
+viewSection name description content =
+    div [ class "flex min-h-0 min-w-0 flex-col border-gray-200 not-last:border-b sm:not-last:border-r sm:not-last:border-b-0 dark:border-white/10" ]
+        [ h2 [ class "shrink-0 border-b border-gray-200 bg-gray-50 px-3 py-1 text-xs font-semibold dark:border-white/10 dark:bg-white/5", title description ]
+            [ text name ]
+        , div [ class "min-h-0 flex-1 overflow-auto px-1 py-2" ] [ content ]
+        ]
+
+
+viewNote : String -> Html msg
+viewNote note =
+    p [ class "px-3 text-xs text-gray-500 dark:text-gray-400" ] [ text note ]
+
+
+viewWaiting : Html Msg
+viewWaiting =
+    div [ class "flex flex-1 items-center justify-center overflow-auto p-6" ]
+        [ div [ class "max-w-md space-y-3 text-sm" ]
+            [ div [ class "flex items-center gap-2" ]
+                [ div [ class "size-6" ] [ logo ]
+                , h2 [ class "font-semibold" ] [ text "Waiting for a Laravel Elm page…" ]
+                ]
+            , p [] [ text "The panel shows the props, state and ports of the Elm page in this tab. If nothing shows up:" ]
+            , ul [ class "list-disc space-y-1 pl-5 text-gray-600 dark:text-gray-400" ]
+                [ li [] [ text "The page must be rendered with ", code [] [ text "Elm::render" ], text "." ]
+                , li [] [ text "Laravel Elm only talks to the devtools in debug mode: ", code [] [ text "APP_DEBUG=true" ], text " (or ", code [] [ text "ELM_DEBUG=true" ], text ")." ]
+                , li [] [ text "Reload the page if it was opened before the extension was installed or updated." ]
+                ]
+            , button
+                [ type_ "button"
+                , class "rounded border border-gray-300 px-3 py-1 hover:bg-gray-100 dark:border-white/20 dark:hover:bg-white/5"
+                , onClick Refresh
+                ]
+                [ text "Check again" ]
+            , p [ class "text-xs text-gray-500 dark:text-gray-400" ]
+                [ a [ href "https://github.com/loganhenson/laravel-elm#devtools", target "_blank", class "underline" ] [ text "Laravel Elm DevTools docs" ] ]
+            ]
+        ]
+
+
+main : Program () Model Msg
 main =
     Browser.element
         { init = init
         , view = view
         , update = update
-        , subscriptions = \_ -> Sub.batch [ receiveLaravelElm ReceiveLaravelElm ]
+        , subscriptions = \_ -> Sub.batch [ receivePage ReceivePage, pageNavigated (\_ -> PageNavigated) ]
         }
 
 

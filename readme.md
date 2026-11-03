@@ -1,73 +1,113 @@
 # Laravel Elm DevTools
 
-Browser extension for debugging Laravel Elm applications.
+A Chrome DevTools panel for [Laravel Elm](https://github.com/loganhenson/laravel-elm) apps. Open DevTools on a
+Laravel Elm page and the **Laravel Elm** panel shows:
 
-## Features
+-   **Props**: the JSON your controller passed to `Elm::render`, including Laravel Elm's own (`errors`,
+    `loading`, `viewports`, ...).
+-   **State**: the page's `state` record, live, as Elm values (`Just 1`, `Editing 2 "draft"`,
+    `Dict.fromList [...]`, ...). It updates after every `Msg`.
+-   **Ports**: the page's ports that JavaScript is subscribed to.
+-   The current page (`Admin.Users` → `resources/elm/pages/Admin/Users.elm`) and URL. The panel follows Laravel
+    Elm navigations and full page loads.
 
-- **Props Inspector**: View all props passed to your Elm pages
-- **State Inspector**: Debug Elm application state in real-time
-- **Page Information**: See current page, URL, and navigation history
-- **Port Monitoring**: Track active Elm ports and subscriptions
+Nodes collapse and expand on click, and stay collapsed as the state changes. The panel follows the DevTools
+light/dark theme.
 
 ## Requirements
 
-- Chrome/Chromium browser
-- Laravel Elm v5.0+ with debug mode enabled
-- Laravel 12+ application
+-   Chrome, Edge, Brave or another Chromium browser (version 116+).
+-   A Laravel Elm app (`loganhenson/laravel-elm` 6.x with the `laravel-elm` 4.x Vite plugin; earlier versions use
+    the same protocol) running in debug mode: `APP_DEBUG=true`, or `ELM_DEBUG=true` to enable it separately.
+-   For **State**: the Vite dev server (`npm run dev` or `composer run dev`). Production builds (`npm run build`)
+    compile the state messages out, because they rely on `Debug.toString`, which `elm make --optimize` does not
+    allow. Props and ports still show.
 
 ## Installation
 
-### Development
+The extension is installed unpacked (it isn't in the Chrome Web Store).
 
-1. Clone this repository
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-3. Build the extension:
-   ```bash
-   npm run build
-   ```
-4. Load the extension in Chrome:
-   - Open Chrome and go to `chrome://extensions/`
-   - Enable "Developer mode"
-   - Click "Load unpacked"
-   - Select the `laravel-elm-devtools` folder
+### From a release
 
-### From Release
+1. Download `laravel-elm-devtools-<version>.zip` from the
+   [latest release](https://github.com/loganhenson/laravel-elm-devtools/releases/latest) and unzip it.
+2. Open `chrome://extensions`, turn on **Developer mode** (top right).
+3. Click **Load unpacked** and select the unzipped folder.
 
-1. Download the latest release
-2. Load the extension in Chrome as described above
+### From source
+
+```bash
+git clone https://github.com/loganhenson/laravel-elm-devtools.git
+cd laravel-elm-devtools
+npm install
+npm run build
+```
+
+Then **Load unpacked** (as above) and select the `laravel-elm-devtools` folder.
+
+To update later: `git pull && npm install && npm run build`, then click the reload icon on the extension in
+`chrome://extensions`.
 
 ## Usage
 
-1. Open your Laravel Elm application in Chrome
-2. Open Chrome DevTools (F12)
-3. Look for the "Laravel Elm" tab in DevTools
-4. Navigate through your Elm application to see props and state changes in real-time
+1. Start your app in development: `composer run dev` (or `php artisan serve` and `npm run dev`).
+2. Open a page rendered with `Elm::render`, open DevTools (F12 / ⌥⌘I), and select the **Laravel Elm** panel (it
+   may be under `»`).
+3. Interact with the page: **State** updates after every `Msg`, and the panel switches pages as you navigate.
 
-## Debugging
+The ⟳ button asks the page to send its props and state again.
 
-The devtools automatically detect Laravel Elm applications with debug mode enabled. Make sure:
+### Troubleshooting
 
-1. Your Laravel application has `APP_DEBUG=true` in `.env`
-2. Your Vite config includes the `laravelElm` plugin with `debug: true`
-3. Your Elm pages are properly initialized with the Laravel Elm framework
+| Symptom                                    | Fix                                                                                                                                                                                                                                                              |
+| ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| "Waiting for a Laravel Elm page…"          | The page isn't rendered with `Elm::render`, or debug mode is off (`APP_DEBUG` / `ELM_DEBUG`). Pages opened before the extension was installed or reloaded need a refresh.                                                                                                       |
+| No **Laravel Elm** panel in DevTools       | Close and reopen DevTools after installing the extension.                                                                                                                                                                                                        |
+| "No state received yet"                    | You're running a production build: start `npm run dev`. If it is running, make sure the Vite plugin isn't configured with `laravelElm({ debug: false })`; with debug on, the dev server switches on the `sendStateToDevtools` line between `DEBUG_TOGGLE` comments in `resources/elm/laravel-elm-stuff/LaravelElm.elm`. |
+| "Could not parse the state"                | Please [open an issue](https://github.com/loganhenson/laravel-elm-devtools/issues) with the raw state shown below the message.                                                                                                                                   |
+
+## How it works
+
+In debug mode Laravel Elm posts `{ type: 'laravel-elm-devtools', data: { page, url, props, state, ports } }` to
+the window when a page loads, when props change and (in development builds) after every `Msg`. `state` is
+`Debug.toString` of the page's state.
+
+-   `content-script.js` relays those messages to the extension. It runs on every http(s) page, which is why
+    Chrome says the extension can "read and change your data on all websites". It only reads messages Laravel
+    Elm posts to the window, and only sends them to the extension's own DevTools panel.
+-   `panel.js` (the DevTools panel) keeps the messages for the inspected tab, parses `state` with `js/parser.js`
+    and hands both to the Elm app in `src/`.
+-   When the panel opens, or when you click ⟳, it dispatches `laravel-elm-devtools-connect` in the page, and
+    Laravel Elm answers with the current page.
+
+Nothing leaves your browser.
 
 ## Development
 
-Watch for changes during development:
 ```bash
-npm run watch
+npm install
+npm run watch   # rebuilds built/elm.js and built/main.css on change
 ```
 
-## Compatibility
+After a change, reload the extension in `chrome://extensions` and reopen DevTools. To debug the panel itself,
+right-click inside it and choose **Inspect**.
 
-- **Manifest Version**: v3 (Chrome Extensions API v3)
-- **Laravel Elm**: v5.0+
-- **Laravel**: 12.x+
-- **PHP**: 8.4+
+| Path                                       | What                                                                     |
+| ------------------------------------------ | ------------------------------------------------------------------------ |
+| `src/Main.elm`                             | The panel UI.                                                            |
+| `src/Inspector.elm`                        | The collapsible tree for props (JSON) and state (Elm values).            |
+| `js/debug-string.peggy` → `js/parser.js`   | Parses `Debug.toString` output. Run `npm run build:parser` after editing the grammar. |
+| `css/main.css`                             | Tailwind 4 entry point.                                                  |
+| `panel.js`, `content-script.js`, `devtools.js`, `manifest.json` | Extension plumbing.                               |
+
+### Releasing
+
+1. Bump `version` in both `package.json` and `manifest.json`.
+2. Commit, then tag and push: `git tag v3.0.1 && git push origin main v3.0.1`.
+
+The **Release** workflow builds `dist/laravel-elm-devtools-<version>.zip` (`npm run package`) and attaches it to a
+GitHub release for the tag. The same zip can be uploaded to the Chrome Web Store.
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) file for details.
+MIT, see [LICENSE](LICENSE).
