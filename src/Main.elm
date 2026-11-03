@@ -283,7 +283,6 @@ viewWaiting =
             , ul [ class "list-disc space-y-1 pl-5 text-gray-600 dark:text-gray-400" ]
                 [ li [] [ text "The page must be rendered with ", code [] [ text "Elm::render" ], text "." ]
                 , li [] [ text "Laravel Elm only talks to the devtools in debug mode: ", code [] [ text "APP_DEBUG=true" ], text " (or ", code [] [ text "ELM_DEBUG=true" ], text ")." ]
-                , li [] [ text "Reload the page if it was opened before the extension was installed or updated." ]
                 ]
             , button
                 [ type_ "button"

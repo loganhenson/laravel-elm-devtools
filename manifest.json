@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Laravel Elm DevTools",
-  "version": "3.0.1",
+  "version": "3.1.0",
   "description": "Inspect the props, state and ports of Laravel Elm pages in Chrome DevTools.",
   "author": "Logan Henson",
   "homepage_url": "https://github.com/loganhenson/laravel-elm-devtools",
@@ -11,12 +11,5 @@
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
   },
-  "devtools_page": "devtools.html",
-  "content_scripts": [
-    {
-      "matches": ["http://*/*", "https://*/*"],
-      "js": ["content-script.js"],
-      "run_at": "document_start"
-    }
-  ]
+  "devtools_page": "devtools.html"
 }

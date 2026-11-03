@@ -25,7 +25,7 @@ Nodes collapse and expand on click and stay collapsed as the state changes. The 
 
 Requirements: a Laravel Elm app in debug mode (APP_DEBUG=true or ELM_DEBUG=true). State is sent while the Vite dev server (npm run dev) is running; production builds compile it out.
 
-Nothing leaves your browser: the extension only reads the messages Laravel Elm posts to the page and shows them in its DevTools panel.
+No permissions, and nothing leaves your browser: the extension only runs while DevTools is open, reads the messages Laravel Elm posts to the page and shows them in its panel.
 
 Docs and source: https://github.com/loganhenson/laravel-elm-devtools
 ```
@@ -46,11 +46,9 @@ Docs and source: https://github.com/loganhenson/laravel-elm-devtools
 Debugging Laravel Elm web applications: it adds a DevTools panel that shows the props, state and ports of the Laravel Elm page being inspected.
 ```
 
-**Host permission justification** (the content script runs on http/https pages)
-
-```
-Laravel Elm apps can run on any domain (localhost, *.test, staging and production hosts), so the content script runs on http(s) pages. It only listens for messages that Laravel Elm itself posts to the page (window.postMessage with type "laravel-elm-devtools", sent only when the app is in debug mode) and forwards them to the extension's own DevTools panel for the same tab. It does not read or modify page content, and sends nothing over the network.
-```
+**Permission justifications:** none needed. Since 3.1.0 the extension requests no permissions (no host
+permissions, no content scripts); the DevTools panel reads the inspected page with
+`chrome.devtools.inspectedWindow.eval`, which needs none.
 
 **Remote code:** No, I am not using remote code. (All JavaScript is in the package.)
 

@@ -6,7 +6,6 @@ import { join, sep } from 'node:path'
 
 const FILES = [
   'manifest.json',
-  'content-script.js',
   'devtools.html',
   'devtools.js',
   'panel.html',

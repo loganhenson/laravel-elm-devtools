@@ -61,7 +61,7 @@ The ⟳ button asks the page to send its props and state again.
 
 | Symptom                                    | Fix                                                                                                                                                                                                                                                              |
 | ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| "Waiting for a Laravel Elm page…"          | The page isn't rendered with `Elm::render`, or debug mode is off (`APP_DEBUG` / `ELM_DEBUG`). Pages opened before the extension was installed or reloaded need a refresh.                                                                                                       |
+| "Waiting for a Laravel Elm page…"          | The page isn't rendered with `Elm::render`, or debug mode is off (`APP_DEBUG` / `ELM_DEBUG`).                                                                                                                                                                    |
 | No **Laravel Elm** panel in DevTools       | Close and reopen DevTools after installing the extension.                                                                                                                                                                                                        |
 | "No state received yet"                    | You're running a production build: start `npm run dev`. If it is running, make sure the Vite plugin isn't configured with `laravelElm({ debug: false })`; with debug on, the dev server switches on the `sendStateToDevtools` line between `DEBUG_TOGGLE` comments in `resources/elm/laravel-elm-stuff/LaravelElm.elm`. |
 | "Could not parse the state"                | Please [open an issue](https://github.com/loganhenson/laravel-elm-devtools/issues) with the raw state shown below the message.                                                                                                                                   |
@@ -72,15 +72,15 @@ In debug mode Laravel Elm posts `{ type: 'laravel-elm-devtools', data: { page, u
 the window when a page loads, when props change and (in development builds) after every `Msg`. `state` is
 `Debug.toString` of the page's state.
 
--   `content-script.js` relays those messages to the extension. It runs on every http(s) page, which is why
-    Chrome says the extension can "read and change your data on all websites". It only reads messages Laravel
-    Elm posts to the window, and only sends them to the extension's own DevTools panel.
--   `panel.js` (the DevTools panel) keeps the messages for the inspected tab, parses `state` with `js/parser.js`
-    and hands both to the Elm app in `src/`.
--   When the panel opens, or when you click ⟳, it dispatches `laravel-elm-devtools-connect` in the page, and
-    Laravel Elm answers with the current page.
+-   While DevTools is open, `panel.js` (the DevTools panel) reads those messages from the inspected tab with
+    `chrome.devtools.inspectedWindow.eval`. On the first read in each page it installs a small listener
+    (`window.__laravelElmDevtools`) that keeps the latest message, and dispatches `laravel-elm-devtools-connect`
+    so Laravel Elm posts its current page. After that it checks for a new message every 250ms (the ⟳ button asks
+    again immediately).
+-   It parses `state` with `js/parser.js` and hands both to the Elm app in `src/`.
 
-Nothing leaves your browser. See [PRIVACY.md](PRIVACY.md).
+The extension requests no permissions: no content scripts, no host permissions, and it only runs while you have
+DevTools open on a tab. Nothing leaves your browser. See [PRIVACY.md](PRIVACY.md).
 
 ## Development
 
@@ -98,7 +98,7 @@ right-click inside it and choose **Inspect**.
 | `src/Inspector.elm`                        | The collapsible tree for props (JSON) and state (Elm values).            |
 | `js/debug-string.peggy` → `js/parser.js`   | Parses `Debug.toString` output. Run `npm run build:parser` after editing the grammar. |
 | `css/main.css`                             | Tailwind 4 entry point.                                                  |
-| `panel.js`, `content-script.js`, `devtools.js`, `manifest.json` | Extension plumbing.                               |
+| `panel.js`, `devtools.js`, `manifest.json` | Extension plumbing.                                                      |
 
 ### Releasing
 
